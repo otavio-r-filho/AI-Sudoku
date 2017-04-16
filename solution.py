@@ -7,6 +7,8 @@ boxes = cross(rows, cols)
 row_units = [cross(r, cols) for r in rows]
 column_units = [cross(rows, c) for c in cols]
 square_units = [cross(rs, cs) for rs in ('ABC','DEF','GHI') for cs in ('123','456','789')]
+frst_diagonal = [rows[i]+cols[i] for i in range(0, len(rows))]
+scnd_diagonal = [rows[len(rows) - 1 - i]+cols[i] for i in range(0, len(rows))]
 unitlist = row_units + column_units + square_units
 units = dict((s, [u for u in unitlist if s in u]) for s in boxes)
 peers = dict((s, set(sum(units[s],[]))-set([s])) for s in boxes)
@@ -37,6 +39,42 @@ def naked_twins(values):
 
     # Find all instances of naked twins
     # Eliminate the naked twins as possibilities for their peers
+
+    #First select a unit
+    for unit in unitlist:
+        unit_twin_values = [] #This vector will store the twin values
+        unit_twin_boxes = [] #This vector will store the twin boxes
+
+        vals = [values[box] for box in unit]
+
+        """ 
+            Due to my inexperience in Python, I'll need to use 2 loops :(
+            In this step I'll get lists to be like:
+
+            unit_twin_values = [     val0     ,     val1     ] -> each val will occur exactly twice
+                                |            | |            |
+            unit_twin_boxes =  [[twin0, twin1],[twin0, twin1]]
+        """
+        #Searching for twin values
+        for value in vals:
+            if vals.count(value) == 2 and value not in unit_twin_values:
+                unit_twin_values.append(value)
+                unit_twin_boxes.append([box for box in unit if values[box] == value])
+
+        #Check if this unit has any twin value
+        if len(unit_twin_values) > 0:
+            for twins in unit_twin_boxes:
+                digits = values[twins[0]]
+                for box in values.keys():
+                    #Check if the box is not one of the twins
+                    if box not in twins:
+                        values = assign_value(values, box, values[box].replace(digits[0], '').replace(digits[1], ''))
+
+                #Sanity check ;)
+                if len([box for box in values.keys() if len(values[box]) == 0]):
+                    return False
+
+    return values
 
 def cross(A, B):
     #Cross product of elements in A and elements in B.
@@ -77,8 +115,15 @@ def display(values):
     return
 
 def eliminate(values):
+    #Getting the list of pre solved values
     solved_values = [box for box in values.keys() if len(values[box]) == 1]
 
+    """
+    Instead of using an iterator of the pre-solved values, I could used the iterator
+    of the values dictionary and also eliminate values for the box that would be solved 
+    in the process. 
+    I'm not using this beacuase in the exercises this answer was not valid
+    """
     for box in solved_values:
         for peer in peers[box]:
             values = assign_value(values, peer, values.replace(values[box]), '')
@@ -117,6 +162,13 @@ def search(values):
     if all(len(values[s]) == 1 for s in boxes):
         return values
 
+    values = naked_twins(values)
+
+    if values is False:
+        return False
+    if all(len(values[s]) == 1 for s in boxes):
+        return values
+
     siz,box = min((len(), box) for box in boxes if len(values[box]) > 1)
 
     for digit in values[box]:
@@ -127,6 +179,7 @@ def search(values):
 
         if attempt:
             return attempt
+    return False
 
 def solve(grid):
     """
@@ -138,6 +191,9 @@ def solve(grid):
         The dictionary representation of the final sudoku grid. False if no solution exists.
     """
     values = grid_values(grid)
+    values = search(values)
+
+    return values
 
 if __name__ == '__main__':
     diag_sudoku_grid = '2.............62....1....7...6..8...3...9...7...6..4...4....8....52.............3'
