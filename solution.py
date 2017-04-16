@@ -77,7 +77,7 @@ def display(values):
     return
 
 def eliminate(values):
-    solved_values = [box for box in boxes if len(values[box]) == 1]
+    solved_values = [box for box in values.keys() if len(values[box]) == 1]
 
     for box in solved_values:
         for peer in peers[box]:
@@ -96,10 +96,37 @@ def only_choice(values):
 
 
 def reduce_puzzle(values):
-    pass
+    stalled = False
+    while not stalled:
+        solve_values_before = [box for box in values.keys() if len(values[box]) == 1]
+        values = eliminate(values)
+        values = only_choice(values)
+        solve_values_after = [box for box in values.keys() if len(values[box]) == 1]
+
+        stalled = solve_values_before == solve_values_after
+
+        if len([box for box in values.keys() if len(values[box]) == 0]):
+            return False
+    return values
 
 def search(values):
-    pass
+    values = reduce_puzzle(values)
+
+    if values is False:
+        return False
+    if all(len(values[s]) == 1 for s in boxes):
+        return values
+
+    siz,box = min((len(), box) for box in boxes if len(values[box]) > 1)
+
+    for digit in values[box]:
+        game_branch = values.copy()
+        game_branch = assign_value(game_branch, box, digit)
+
+        attempt = search(game_branch)
+
+        if attempt:
+            return attempt
 
 def solve(grid):
     """
@@ -110,6 +137,7 @@ def solve(grid):
     Returns:
         The dictionary representation of the final sudoku grid. False if no solution exists.
     """
+    values = grid_values(grid)
 
 if __name__ == '__main__':
     diag_sudoku_grid = '2.............62....1....7...6..8...3...9...7...6..4...4....8....52.............3'
