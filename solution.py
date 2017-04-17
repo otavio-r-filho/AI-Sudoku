@@ -33,18 +33,9 @@ def naked_twins(values):
         unit_twin_boxes = [] #This vector will store the twin boxes
 
         vals = [values[box] for box in unit]
-
-        """ 
-            Due to my inexperience in Python, I'll need to use 2 loops :(
-            In this step I'll get lists to be like:
-
-            unit_twin_values = [     val0     ,     val1     ] -> each val will occur exactly twice
-                                |            | |            |
-            unit_twin_boxes =  [[twin0, twin1],[twin0, twin1]]
-        """
-        #Searching for twin values
+        #Searching for twin values with 2 digits
         for value in vals:
-            if vals.count(value) == 2 and value not in unit_twin_values:
+            if vals.count(value) == 2 and len(value) == 2 and value not in unit_twin_values:
                 unit_twin_values.append(value)
                 unit_twin_boxes.append([box for box in unit if values[box] == value])
 
@@ -52,15 +43,13 @@ def naked_twins(values):
         if len(unit_twin_values) > 0:
             for twins in unit_twin_boxes:
                 digits = values[twins[0]]
-                for box in values.keys():
+                for box in unit:
                     #Check if the box is not one of the twins
-                    if box not in twins:
-                        print(digits)
+                    if box not in twins and len(values[box]) > 1:
                         values = assign_value(values, box, values[box].replace(digits[0], '').replace(digits[1], ''))
-
-                #Sanity check ;)
-                #if len([box for box in values.keys() if len(values[box]) == 0]):
-                    #return False
+        #Sanity check ;)
+        if len([box for box in values.keys() if len(values[box]) == 0]):
+            return False
 
     return values
 
@@ -147,34 +136,29 @@ def only_choice(values):
 def reduce_puzzle(values):
     stalled = False
     while not stalled:
-        solve_values_before = [box for box in values.keys() if len(values[box]) == 1]
+        solve_values_before = len([box for box in values.keys() if len(values[box]) == 1])
+        values = diagonal(values)
         values = eliminate(values)
         values = only_choice(values)
-        values = diagonal(values)
-        solve_values_after = [box for box in values.keys() if len(values[box]) == 1]
+        solve_values_after = len([box for box in values.keys() if len(values[box]) == 1])
 
         stalled = solve_values_before == solve_values_after
 
-        #if len([box for box in values.keys() if len(values[box]) == 0]):
-            #return False
+        if len([box for box in values.keys() if len(values[box]) == 0]):
+            return False
+    values = naked_twins(values)
     return values
 
 def search(values):
+
     values = reduce_puzzle(values)
 
-    #if values is False:
-        #return False
+    if values is False:
+        return False
     if all(len(values[s]) == 1 for s in boxes):
         return values
 
-    values = naked_twins(values)
-
-    #if values is False:
-        #return False
-    if all(len(values[s]) == 1 for s in boxes):
-        return values
-
-    siz,box = min((len(), box) for box in boxes if len(values[box]) > 1)
+    siz,box = min((len(values[box]), box) for box in boxes if len(values[box]) > 1)
 
     for digit in values[box]:
         game_branch = values.copy()
