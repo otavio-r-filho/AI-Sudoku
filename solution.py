@@ -32,19 +32,24 @@ def naked_twins(values):
         unit_twin_values = [] #This vector will store the twin values
         unit_twin_boxes = [] #This vector will store the twin boxes
 
-        vals = [values[box] for box in unit]
-        #Searching for twin values with 2 digits
+        #Then I take all values in the unit with length 2
+        vals = [values[box] for box in unit if len(values[box]) == 2]
+
+        #In this loop the values that occur twice and are not included in the unit_twin_values will be appended to the list
+        #Boxes that have a value in the unit_twin_values list will be placed in a list, which will be a sublist of unit_twin_boxes.
+        #Each sublist of the unit_twin_box will have exactly 2 items
         for value in vals:
-            if vals.count(value) == 2 and len(value) == 2 and value not in unit_twin_values:
+            if vals.count(value) == 2 and value not in unit_twin_values:
                 unit_twin_values.append(value)
                 unit_twin_boxes.append([box for box in unit if values[box] == value])
 
-        #Check if this unit has any twin value
+        #Before start traversing the unit_twin_boxes list, I check if there is any element in this list
         if len(unit_twin_values) > 0:
             for twins in unit_twin_boxes:
+                #As these boxes are twins, only one box is need to read the twin value
                 digits = values[twins[0]]
                 for box in unit:
-                    #Check if the box is not one of the twins
+                    #Check if the box is not one of the twins, because I don't one twin erasing the other
                     if box not in twins and len(values[box]) > 1:
                         values = assign_value(values, box, values[box].replace(digits[0], '').replace(digits[1], ''))
         #Sanity check ;)
@@ -54,14 +59,17 @@ def naked_twins(values):
     return values
 
 def diagonal(values):
+    #Grabbing the solved values in the diagonal
     first_diagonal_solved = [values[box] for box in frst_diagonal if len(values[box]) == 1]
     second_diagonal_solved = [values[box] for box in scnd_diagonal if len(values[box]) == 1]
 
+    #For each box in the first diagonal array that have more than 1 value, the solved values will be subtracted
     for box in frst_diagonal:
         for value in first_diagonal_solved:
             if len(values[box]) > 1:
                 value = assign_value(values, box, values[box].replace(value,''))
 
+    #Works the same way as above
     for box in scnd_diagonal:
         for value in second_diagonal_solved:
             if len(values[box]) > 1:
@@ -85,7 +93,9 @@ def grid_values(grid):
     """
     digits = '123456789'
     chars = []
-
+    """
+    Puts the grid chars in a list, replacing . for 123456789
+    """
     for digit in grid:
         if digit in digits:
             chars.append(digit)
@@ -108,21 +118,20 @@ def display(values):
     return
 
 def eliminate(values):
-    #Getting the list of pre solved values
-    solved_values = [box for box in values.keys() if len(values[box]) == 1]
-
     """
-    Instead of using an iterator of the pre-solved values, I could used the iterator
-    of the values dictionary and also eliminate values for the box that would be solved 
-    in the process. 
-    I'm not using this beacuase in the exercises this answer was not valid
+    Selects the boxes that have values with length = 1
+    subtract this value from its peers
     """
-    for box in solved_values:
-        for peer in peers[box]:
-            values = assign_value(values, peer, values[peer].replace(values[box], ''))
+    for box in boxes:
+        if len(values[box]) == 1:
+            for peer in peers[box]:
+                values = assign_value(values, peer, values[peer].replace(values[box], ''))
     return values
 
 def only_choice(values):
+    """
+    Select a unit and replace the value of the box with the digit that exists only in this box
+    """
     digits = '123456789'
 
     for unit in unitlist:
@@ -134,6 +143,14 @@ def only_choice(values):
 
 
 def reduce_puzzle(values):
+    """
+    There 3 constraints:
+        1 - All values in the diagonals must be unique
+        2 - There cannot be more than 1 occurrence of a digit in the same unit
+        3 - If only one box in a particular unit can have a digit, this box must be filled with this digit
+    If the problem gets stalled, the naked twins technique is used narrow down that numbers of possibilities
+    """
+
     stalled = False
     while not stalled:
         solve_values_before = len([box for box in values.keys() if len(values[box]) == 1])
@@ -146,10 +163,15 @@ def reduce_puzzle(values):
 
         if len([box for box in values.keys() if len(values[box]) == 0]):
             return False
-    values = naked_twins(values)
     return values
 
 def search(values):
+    """
+    First the puzzle is reduced
+    If the puzzle is not solved after the reduction, the box with the least amount of choices will be picked
+    and one of the values will be chosen. This will be repeated util a solution is found and the method returns a solution,
+    or no solution was found and the method returns false
+    """
 
     values = reduce_puzzle(values)
 
@@ -158,7 +180,9 @@ def search(values):
     if all(len(values[s]) == 1 for s in boxes):
         return values
 
-    siz,box = min((len(values[box]), box) for box in boxes if len(values[box]) > 1)
+    values = naked_twins(values)
+
+    size,box = min((len(values[box]), box) for box in boxes if len(values[box]) > 1)
 
     for digit in values[box]:
         game_branch = values.copy()
@@ -168,6 +192,8 @@ def search(values):
 
         if attempt:
             return attempt
+
+    return False
 
 def solve(grid):
     """
