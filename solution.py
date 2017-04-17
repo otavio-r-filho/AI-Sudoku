@@ -1,18 +1,5 @@
 assignments = []
 
-rows = '123456789'
-cols = 'ABCDEFGHI'
-
-boxes = cross(rows, cols)
-row_units = [cross(r, cols) for r in rows]
-column_units = [cross(rows, c) for c in cols]
-square_units = [cross(rs, cs) for rs in ('ABC','DEF','GHI') for cs in ('123','456','789')]
-frst_diagonal = [rows[i]+cols[i] for i in range(0, len(rows))]
-scnd_diagonal = [rows[len(rows) - 1 - i]+cols[i] for i in range(0, len(rows))]
-unitlist = row_units + column_units + square_units
-units = dict((s, [u for u in unitlist if s in u]) for s in boxes)
-peers = dict((s, set(sum(units[s],[]))-set([s])) for s in boxes)
-
 def assign_value(values, box, value):
     """
     Please use this function to update your values dictionary!
@@ -68,17 +55,34 @@ def naked_twins(values):
                 for box in values.keys():
                     #Check if the box is not one of the twins
                     if box not in twins:
+                        print(digits)
                         values = assign_value(values, box, values[box].replace(digits[0], '').replace(digits[1], ''))
 
                 #Sanity check ;)
-                if len([box for box in values.keys() if len(values[box]) == 0]):
-                    return False
+                #if len([box for box in values.keys() if len(values[box]) == 0]):
+                    #return False
+
+    return values
+
+def diagonal(values):
+    first_diagonal_solved = [values[box] for box in frst_diagonal if len(values[box]) == 1]
+    second_diagonal_solved = [values[box] for box in scnd_diagonal if len(values[box]) == 1]
+
+    for box in frst_diagonal:
+        for value in first_diagonal_solved:
+            if len(values[box]) > 1:
+                value = assign_value(values, box, values[box].replace(value,''))
+
+    for box in scnd_diagonal:
+        for value in second_diagonal_solved:
+            if len(values[box]) > 1:
+                value = assign_value(values, box, values[box].replace(value,''))
 
     return values
 
 def cross(A, B):
     #Cross product of elements in A and elements in B.
-    return [a+b for a in A for b in b]
+    return [a+b for a in A for b in B]
 
 def grid_values(grid):
     """
@@ -126,7 +130,7 @@ def eliminate(values):
     """
     for box in solved_values:
         for peer in peers[box]:
-            values = assign_value(values, peer, values.replace(values[box]), '')
+            values = assign_value(values, peer, values[peer].replace(values[box], ''))
     return values
 
 def only_choice(values):
@@ -146,26 +150,27 @@ def reduce_puzzle(values):
         solve_values_before = [box for box in values.keys() if len(values[box]) == 1]
         values = eliminate(values)
         values = only_choice(values)
+        values = diagonal(values)
         solve_values_after = [box for box in values.keys() if len(values[box]) == 1]
 
         stalled = solve_values_before == solve_values_after
 
-        if len([box for box in values.keys() if len(values[box]) == 0]):
-            return False
+        #if len([box for box in values.keys() if len(values[box]) == 0]):
+            #return False
     return values
 
 def search(values):
     values = reduce_puzzle(values)
 
-    if values is False:
-        return False
+    #if values is False:
+        #return False
     if all(len(values[s]) == 1 for s in boxes):
         return values
 
     values = naked_twins(values)
 
-    if values is False:
-        return False
+    #if values is False:
+        #return False
     if all(len(values[s]) == 1 for s in boxes):
         return values
 
@@ -179,7 +184,6 @@ def search(values):
 
         if attempt:
             return attempt
-    return False
 
 def solve(grid):
     """
@@ -194,6 +198,19 @@ def solve(grid):
     values = search(values)
 
     return values
+
+rows = 'ABCDEFGHI'
+cols = '123456789'
+
+boxes = cross(rows, cols)
+row_units = [cross(r, cols) for r in rows]
+column_units = [cross(rows, c) for c in cols]
+square_units = [cross(rs, cs) for rs in ('ABC','DEF','GHI') for cs in ('123','456','789')]
+frst_diagonal = [rows[i]+cols[i] for i in range(0, len(rows))]
+scnd_diagonal = [rows[len(rows) - 1 - i]+cols[i] for i in range(0, len(rows))]
+unitlist = row_units + column_units + square_units
+units = dict((s, [u for u in unitlist if s in u]) for s in boxes)
+peers = dict((s, set(sum(units[s],[]))-set([s])) for s in boxes)
 
 if __name__ == '__main__':
     diag_sudoku_grid = '2.............62....1....7...6..8...3...9...7...6..4...4....8....52.............3'
