@@ -50,32 +50,27 @@ def naked_twins(values):
                 digits = values[twins[0]]
                 for box in unit:
                     #Check if the box is not one of the twins, because I don't one twin erasing the other
-                    if box not in twins and len(values[box]) > 1:
+                    if box not in twins and len(values[box]) > 1 and len(digits) == 2:
                         values = assign_value(values, box, values[box].replace(digits[0], '').replace(digits[1], ''))
-        #Sanity check ;)
-        if len([box for box in values.keys() if len(values[box]) == 0]):
-            return False
-
     return values
 
-def diagonal(values):
-    #Grabbing the solved values in the diagonal
-    first_diagonal_solved = [values[box] for box in frst_diagonal if len(values[box]) == 1]
-    second_diagonal_solved = [values[box] for box in scnd_diagonal if len(values[box]) == 1]
+def is_valid(values):
+    """
+    This function test if the values in the first and second diagonals are unique
+    It returns true if yes and false otherwise
+    """
 
-    #For each box in the first diagonal array that have more than 1 value, the solved values will be subtracted
-    for box in frst_diagonal:
-        for value in first_diagonal_solved:
-            if len(values[box]) > 1:
-                value = assign_value(values, box, values[box].replace(value,''))
+    digits = '123456789'
 
-    #Works the same way as above
-    for box in scnd_diagonal:
-        for value in second_diagonal_solved:
-            if len(values[box]) > 1:
-                value = assign_value(values, box, values[box].replace(value,''))
-
-    return values
+    for unit in unitlist:
+        for digit in digits:
+            digit_occurrences = 0 
+            for box in unit:
+                if values[box] == digit:
+                    digit_occurrences += 1
+            if digit_occurrences != 1:
+                return False
+    return True
 
 def cross(A, B):
     #Cross product of elements in A and elements in B.
@@ -122,10 +117,18 @@ def eliminate(values):
     Selects the boxes that have values with length = 1
     subtract this value from its peers
     """
-    for box in boxes:
-        if len(values[box]) == 1:
-            for peer in peers[box]:
-                values = assign_value(values, peer, values[peer].replace(values[box], ''))
+    # for box in boxes:
+    #     if len(values[box]) == 1:
+    #         for peer in peers[box]:
+    #             values = assign_value(values, peer, values[peer].replace(values[box], ''))
+
+    for unit in unitlist:
+        solved = [values[box] for box in unit if len(values[box]) == 1]
+        for box in unit:
+            for digit in solved:
+                if len(values[box]) > 1:
+                    values = assign_value(values, box, values[box].replace(digit, ''))
+
     return values
 
 def only_choice(values):
@@ -149,17 +152,22 @@ def reduce_puzzle(values):
         2 - There cannot be more than 1 occurrence of a digit in the same unit
         3 - If only one box in a particular unit can have a digit, this box must be filled with this digit
     If the problem gets stalled, the naked twins technique is used narrow down that numbers of possibilities
+
+    The functions measures the length of the unsolved boxes before and after the reductions, if this length remains the
+    same, the naked twins technique will be used. If after the naked twins the sudoku is still stalled, the function return
+    the board back 
     """
 
     stalled = False
     while not stalled:
-        solve_values_before = len([box for box in values.keys() if len(values[box]) == 1])
-        values = diagonal(values)
+        unsolved_values_length_before = sum([len(values[box]) for box in boxes if len(values[box]) > 1])
+        
         values = eliminate(values)
         values = only_choice(values)
-        solve_values_after = len([box for box in values.keys() if len(values[box]) == 1])
+        values = naked_twins(values)
 
-        stalled = solve_values_before == solve_values_after
+        unsolved_values_length_after = sum([len(values[box]) for box in boxes if len(values[box]) > 1])
+        stalled = unsolved_values_length_before == unsolved_values_length_after           
 
         if len([box for box in values.keys() if len(values[box]) == 0]):
             return False
@@ -169,7 +177,7 @@ def search(values):
     """
     First the puzzle is reduced
     If the puzzle is not solved after the reduction, the box with the least amount of choices will be picked
-    and one of the values will be chosen. This will be repeated util a solution is found and the method returns a solution,
+    and one of the values will be chosen. This will be repeated util a diagonal solution is found and the method returns a solution,
     or no solution was found and the method returns false
     """
 
@@ -180,8 +188,6 @@ def search(values):
     if all(len(values[s]) == 1 for s in boxes):
         return values
 
-    values = naked_twins(values)
-
     size,box = min((len(values[box]), box) for box in boxes if len(values[box]) > 1)
 
     for digit in values[box]:
@@ -191,7 +197,8 @@ def search(values):
         attempt = search(game_branch)
 
         if attempt:
-            return attempt
+            if is_valid(attempt):
+                return attempt
 
     return False
 
@@ -212,19 +219,23 @@ def solve(grid):
 rows = 'ABCDEFGHI'
 cols = '123456789'
 
+#As its own name says, these lists and dictionaries store the boxes grouped by its names
 boxes = cross(rows, cols)
 row_units = [cross(r, cols) for r in rows]
 column_units = [cross(rows, c) for c in cols]
 square_units = [cross(rs, cs) for rs in ('ABC','DEF','GHI') for cs in ('123','456','789')]
-frst_diagonal = [rows[i]+cols[i] for i in range(0, len(rows))]
-scnd_diagonal = [rows[len(rows) - 1 - i]+cols[i] for i in range(0, len(rows))]
-unitlist = row_units + column_units + square_units
-units = dict((s, [u for u in unitlist if s in u]) for s in boxes)
-peers = dict((s, set(sum(units[s],[]))-set([s])) for s in boxes)
+first_diagonal = [rows[i]+cols[i] for i in range(0, len(rows))]
+second_diagonal = [rows[len(rows) - 1 - i]+cols[i] for i in range(0, len(rows))]
+unitlist = [first_diagonal] + [second_diagonal] + row_units + column_units + square_units
 
 if __name__ == '__main__':
-    diag_sudoku_grid = '2.............62....1....7...6..8...3...9...7...6..4...4....8....52.............3'
-    #diag_sudoku_grid = '9.1....8.8.5.7..4.2.4....6...7......5..............83.3..6......9................'
+
+    """
+    
+    #diag_sudoku_grid = '2.............62....1....7...6..8...3...9...7...6..4...4....8....52.............3'
+    diag_sudoku_grid = '9.1....8.8.5.7..4.2.4....6...7......5..............83.3..6......9................'
+    #diag_sudoku_grid = '.5....817412......7...1...................7...49....5.....3....2........6.....9..'
+
     display(solve(diag_sudoku_grid))
 
     try:
@@ -236,24 +247,11 @@ if __name__ == '__main__':
     except:
         print('We could not visualize your board due to a pygame issue. Not a problem! It is not a requirement.')
 
-    """
-    Unsolved grid:
-
-        9 . 1|. . .|. 8 . 
-        8 . 5|. 7 .|. 4 .
-        2 . 4|. . .|. 6 .
-        -----+-----+-----
-        . . 7|. . .|. . .
-        5 . .|. . .|. . .
-        . . .|. . .|8 3 .
-        -----+-----+-----
-        3 . .|6 . .|. . .
-        . 9 .|. . .|. . .
-        . . .|. . .|. . .
-
-        
+    """   
     grids = [
         '2.............62....1....7...6..8...3...9...7...6..4...4....8....52.............3',
+        '9.1....8.8.5.7..4.2.4....6...7......5..............83.3..6......9................',
+        '.5....817412......7...1...................7...49....5.....3....2........6.....9..',
         '4.......3..9.........1...7.....1.8.....5.9.....1.2.....3...5.........7..7.......8',
         '......3.......12..71..9......36...................56......4..67..95.......8......', 
         '....3...1..6..........9...5.......6..1.7.8.2..8.......3...1..........7..9...2....', 
@@ -268,14 +266,19 @@ if __name__ == '__main__':
 
     for grid in grids:
         assignments.clear()
+        solution = solve(grid)
 
-        display(solve(grid))
-
-        try:
-            from visualize import visualize_assignments
-            visualize_assignments(assignments)
-        except SystemExit:
-            pass
-        except:
-            print('We could not visualize your board due to a pygame issue. Not a problem! It is not a requirement.')
-    """
+        if solution:
+            print('\nDiagonal solution found!:')
+            display(solve(grid))
+            
+            try:
+                from visualize import visualize_assignments
+                visualize_assignments(assignments)
+            except SystemExit:
+                pass
+            except:
+                print('We could not visualize your board due to a pygame issue. Not a problem! It is not a requirement.')
+        else:
+            print('\nI couln\'t find a solution the grid:\n', grid, '\n')
+    
